@@ -98,7 +98,7 @@ Node 24, npm, Docker Desktop (for the local Supabase), Supabase CLI, a GitHub ac
 npm install
 npm run db:start               # local Postgres, Auth and Storage in Docker (applies migrations)
 cp .env.example .env.local     # fill API_URL / PUBLISHABLE_KEY / SECRET_KEY from `npx supabase status`
-npm run bootstrap-admin -- --email you@example.com --name "Admin"   # asks for a password
+npx tsx scripts/bootstrap-admin.ts --email you@example.com --name "Admin"   # asks for a password
 npm run dev                    # http://localhost:3000
 npm test && npm run test:int && npm run test:e2e   # integration + e2e WIPE the local database
 ```
@@ -110,9 +110,9 @@ npm test && npm run test:int && npm run test:e2e   # integration + e2e WIPE the 
 1. Create a project on the Free plan, in the region closest to your users (e.g. Singapore).
 2. **Auth → Providers → Email:** turn email login on, turn **"Allow new users to sign up" off**, and turn "Confirm email" off (the app confirms invited users itself).
 3. **Auth → URL configuration:** set the Site URL to `APP_ORIGIN`.
-4. Apply the migrations: `npx supabase link --project-ref <ref>`, then `npx supabase db push --remote` (preview first with `--dry-run`). The migrations also create the `imports` storage bucket and its rules, so nothing needs clicking in the dashboard.
+4. Apply the migrations: `npx supabase login` (opens a browser to authorize the CLI), then `npx supabase link --project-ref <ref>` (`<ref>` is the project ID only, not the URL: `abcd1234` from `https://abcd1234.supabase.co`), then `npx supabase db push --remote` (preview first with `--dry-run`). The migrations also create the `imports` storage bucket and its rules, so nothing needs clicking in the dashboard.
 5. **Project Settings → API keys:** copy the project URL, the **publishable** key and the **secret** key into Vercel's environment variables.
-6. Bootstrap the admin against production: put the production values in a temporary file (e.g. `.env.prod`), run `npm run bootstrap-admin -- --env .env.prod --email … --name "…"`, then delete the file.
+6. Bootstrap the admin against production: put the production values in a temporary file (e.g. `.env.prod`), run `npx tsx scripts/bootstrap-admin.ts --env .env.prod --email … --name "…"`, then delete the file.
 
 ### B.5 Migrations
 

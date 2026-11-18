@@ -28,7 +28,7 @@ Requirements: Node 24, npm, Docker Desktop (running).
 npm install
 npm run db:start                  # local Supabase in Docker (applies migrations)
 cp .env.example .env.local        # fill keys from: npx supabase status
-npm run bootstrap-admin -- --email you@example.com --name "Admin"
+npx tsx scripts/bootstrap-admin.ts --email you@example.com --name "Admin"
 npm run dev                       # http://localhost:3000
 ```
 
@@ -54,14 +54,14 @@ Full guide: [`docs/testing-and-deployment.md`](docs/testing-and-deployment.md) P
 1. **Supabase (Free):**
    - Create a project in Singapore.
    - Under Auth, turn **off** "Allow new users to sign up".
-   - Run `npx supabase link --project-ref <ref>`, then `npx supabase db push --remote`.
+   - Run `npx supabase login`, then `npx supabase link --project-ref <ref>` (the ref is the ID in the project URL, e.g. `abcd1234` from `https://abcd1234.supabase.co`), then `npx supabase db push --remote`.
 2. **Vercel (Hobby):** import the GitHub repo and set these variables:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
    - `SUPABASE_SECRET_KEY`
    - `APP_ORIGIN`
    - optionally `AI_PROVIDER`, `AI_API_KEY` and `AI_MODEL`.
-3. **First admin:** run `npm run bootstrap-admin -- --env .env.prod …` against production.
+3. **First admin:** run `npx tsx scripts/bootstrap-admin.ts --env .env.prod …` against production.
 4. **GitHub Actions secrets:**
    - `APP_ORIGIN`: the keep-alive job pings `/api/health` every 3 days.
    - `SUPABASE_DB_URL`: used by the weekly backup job, which stores dumps as private artifacts for 90 days.

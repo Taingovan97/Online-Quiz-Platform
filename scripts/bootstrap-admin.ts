@@ -1,6 +1,6 @@
 /**
  * Creates the first admin account. Run locally with the target project's env:
- *   npm run bootstrap-admin -- --email you@example.com --name "Admin" [--env .env.local] [--force]
+ *   npx tsx scripts/bootstrap-admin.ts --email you@example.com --name "Admin" [--env .env.local] [--force]
  * The password is read from the ADMIN_PASSWORD env var or prompted interactively.
  */
 import { config } from "dotenv";
