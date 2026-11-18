@@ -5,6 +5,8 @@ export type ErrorCode =
   | "NOT_FOUND"
   | "CONFLICT"
   | "INVITE_INVALID"
+  | "ATTEMPT_CLOSED"
+  | "DEADLINE_PASSED"
   | "INTERNAL";
 
 export type Result<T = undefined> =
