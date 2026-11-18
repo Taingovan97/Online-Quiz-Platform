@@ -5,6 +5,7 @@ import { t } from "@/lib/i18n/vi";
 const links = [
   { href: "/admin", label: t.nav.dashboard },
   { href: "/admin/quizzes", label: t.nav.quizzes },
+  { href: "/admin/imports/new", label: t.imports.nav },
   { href: "/admin/subjects", label: t.subjects.title },
   { href: "/admin/users", label: t.nav.users },
 ];

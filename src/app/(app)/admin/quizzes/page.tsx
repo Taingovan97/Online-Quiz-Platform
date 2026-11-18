@@ -50,6 +50,9 @@ export default async function AdminQuizzesPage({ searchParams }: PageProps<"/adm
         <h1 className="text-2xl font-semibold">{t.quiz.library}</h1>
         <div className="flex gap-2">
           <NewQuizDialog subjects={subjects ?? []} />
+          <Button className="h-10" render={<Link href="/admin/imports/new" />} nativeButton={false}>
+            {t.imports.title}
+          </Button>
         </div>
       </div>
 

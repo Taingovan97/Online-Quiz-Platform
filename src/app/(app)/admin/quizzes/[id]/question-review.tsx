@@ -18,6 +18,7 @@ import { t } from "@/lib/i18n/vi";
 import { PROBLEM_STATUSES, reviewSummary, sortForReview } from "@/lib/quiz/review";
 import type { AnswerMode, QuestionDraft, QuizStatus, ValidationIssue } from "@/lib/quiz/types";
 import { publishQuizAction, verifyQuestionsAction } from "../actions";
+import { AiButton } from "./ai-button";
 import { QuestionEditor } from "./question-editor";
 
 type Filter = keyof typeof t.question.filters;
@@ -25,8 +26,8 @@ type Filter = keyof typeof t.question.filters;
 export type ReviewExtras = {
   /** Per-question review warnings (e.g. from PDF import), keyed by question id. */
   warnings?: Record<string, string[]>;
-  /** Slot for extra toolbar actions (e.g. AI suggestions in M3). */
-  toolbar?: (selected: string[], clearSelection: () => void) => React.ReactNode;
+  /** Present when an AI provider is configured on the server. */
+  ai?: { model: string };
   banner?: React.ReactNode;
 };
 
@@ -34,7 +35,7 @@ export function QuestionReview({
   quiz,
   questions,
   warnings = {},
-  toolbar,
+  ai,
   banner,
 }: {
   quiz: { id: string; status: QuizStatus; mode: AnswerMode };
@@ -146,7 +147,18 @@ export function QuestionReview({
               {t.question.selectAll}
             </label>
             <div className="ml-auto flex flex-wrap gap-2">
-              {toolbar?.([...selected], () => setSelected(new Set()))}
+              {ai && (
+                <AiButton
+                  quizId={quiz.id}
+                  model={ai.model}
+                  questionIds={
+                    selected.size
+                      ? [...selected]
+                      : questions.filter((q) => PROBLEM_STATUSES.includes(q.answerStatus)).map((q) => q.id)
+                  }
+                  onDone={() => setSelected(new Set())}
+                />
+              )}
               <Button variant="outline" disabled={selected.size === 0 || pending} onClick={verify}>
                 <CheckCheck /> {t.question.verifySelected(selected.size)}
               </Button>

@@ -369,17 +369,18 @@ type Item = { page: number; str: string; x: number; y: number; w: number; h: num
 
 Empty or whitespace-only items are dropped.
 
-**Feasibility spike (first task of M3).** Dump the items for `PLDC1.pdf` and confirm:
-- outer letters come out as separate single-character items
-- inner labels start an item, or are a neighbouring item.
-
-The thresholds below are adjusted to the spike's results and written into this document.
+**Feasibility check results (M3, `scripts/dump-pdf-items.mts`).** `PLDC1.pdf` gives 3,217 items on 8 pages:
+- Words are split around Vietnamese diacritics (`"Pháp lu" "ậ" "t"`). Fragments of one word touch (gap ≈ −0.1 pt); separate words are ≈ 2.5 pt apart.
+- Outer letters are always lone single-letter items at x ≈ 71 (left column) and x ≈ 303 (right column). Option text starts at x ≈ 98 / 330.
+- Question numbers are separate `N.` items at x 68–74. Answer-key entries are single items such as `"13. a"`.
+- The PDF has no page headers or footers. There is one stray `?` item (Q6).
 
 ### C.2 Building lines
 
 1. Sort the items by (page, y, x).
 2. Group items into a line when |Δy| ≤ 0.5 × the median item height.
-3. Within a line, sort by x. Join neighbouring items with a space when the gap between them is more than 0.25 × the item height.
+3. Within a line, sort by x. Neighbouring items are **concatenated** when the gap between them is ≤ 1 pt, and separated by one space otherwise.
+4. Apply NFC, then drop any combining marks left over (duplicate accents such as `thuế` + U+0301).
 
 Each line keeps its items (with x positions) for building the option grid.
 
@@ -400,15 +401,15 @@ Text before the first option belongs to the question stem, so stems that run ove
 
 ### C.4 Building the option grid within one question
 
-1. **Outer-letter tokens:** items whose text is exactly one of `A–F`, located to the left of option text.
-2. **Columns:** group the x positions of the outer letters into columns (a gap > 25 % of page width starts a new column). The sample has 2 columns.
-3. **Option starts:** a token whose text begins with `/^[A-F]\.\s?/` (the inner label) and sits to the right of an outer-letter column.
-4. **Option text:** every item after an option start, up to the next option start in the same column or the next question. The inner label is removed (D4); wrapped lines are joined with a space.
-5. **Matching an option to its outer letter:** the nearest outer-letter token in the same column whose y is within the option's vertical span (first to last line, plus half a line on each side). This covers the case where the letter sits on the option's second line (Q8, Q38).
-6. **Cross-check:** sort the options into rows (by y) and columns. In a 2-column grid, the expected label for row *r* and column *c* is `"ABCDEF"[r*2 + c]`.
-   - Outer letter found and equal to the expected label → use it.
-   - Outer letter found but different, missing, or duplicated → `AMBIGUOUS`, with warning `GRID_MISMATCH`; the expected label is used for display.
-7. **Fewer than 2 options found** → warning `TOO_FEW_OPTIONS`; the status depends on the answer key, and the question can't be published until it is fixed.
+*(As implemented in `src/lib/pdf-import/parse.ts`.)*
+
+1. **Columns:** across the whole document, cluster the x positions of the lone `A–F` items. The two most frequent clusters, if more than 100 pt apart, are the left and right outer-letter columns. Each line is split into a left and a right part at the right column's x − 6 pt.
+2. **Outer letter:** a column part whose first item is a lone `A–F` within ±5 pt of that column's outer x.
+3. **Option start:** a column part whose text begins with `/^[A-F]\s*\.\s*/` (the inner label). The label is removed from the text (D4).
+4. **Continuation:** any other text in a column is added to the option currently open in that column. An outer letter found on a continuation line is attached to the open option, which covers Q8, Q11, Q38 and Q41.
+5. **Labels:** when every option has an outer letter, the letters are unique, and together they form A…N, the outer letters are used. Otherwise the question becomes `AMBIGUOUS` with `GRID_MISMATCH`, and labels are assigned by grid position (left column A, C, E…; right column B, D, F…) for display.
+6. **Fewer than 2 options** → `TOO_FEW_OPTIONS` (blocks publishing until fixed).
+7. Lines between the stem and the first option are added to the stem. A line made only of punctuation is skipped with `STRAY_TEXT`.
 
 ### C.5 Answer key parsing
 

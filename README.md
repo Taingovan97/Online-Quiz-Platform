@@ -35,6 +35,6 @@ npm run dev                       # http://localhost:3000
 
 - [x] M1 — Foundation & invitation-only auth
 - [x] M2 — Subjects, quizzes, question editor
-- [ ] M3 — PDF import & answer verification
+- [x] M3 — PDF import & answer verification
 - [ ] M4 — Exam & grading
 - [ ] M5 — Results, history, deployment
