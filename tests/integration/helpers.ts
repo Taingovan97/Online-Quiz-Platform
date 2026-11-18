@@ -27,7 +27,11 @@ export async function signInAs(email: string, password = PASSWORD): Promise<Supa
 /** Deletes all app data and auth users. Integration tests run serially. */
 export async function resetDb() {
   const admin = adminDb();
-  await admin.from("invitations").delete().not("id", "is", null);
+  // Children first: later milestones add tables that reference these.
+  for (const table of ["attempts", "import_jobs", "ai_suggestions", "quizzes", "subjects", "invitations"]) {
+    const { error } = await admin.from(table).delete().not("id", "is", null);
+    if (error && !/does not exist|Could not find the table/i.test(error.message)) throw error;
+  }
   for (;;) {
     const { data, error } = await admin.auth.admin.listUsers({ perPage: 200 });
     if (error) throw error;
