@@ -1,0 +1,31 @@
+name: Weekly database backup
+
+# Supabase Free has no guaranteed backups. Dumps schema + data weekly and keeps
+# them as a private workflow artifact for 90 days. Keep the repository private.
+on:
+  schedule:
+    - cron: "41 2 * * 0"
+  workflow_dispatch:
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Dump schema and data
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          mkdir -p backup
+          npx supabase db dump --remote="$SUPABASE_DB_URL" -f backup/schema.sql
+          npx supabase db dump --remote="$SUPABASE_DB_URL" --data-only -f backup/data.sql
+      - uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: backup/
+          retention-days: 90

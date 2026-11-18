@@ -65,7 +65,7 @@ ai_suggestions(content_hash, model, labels[], explanation)     <- cache
 ```
 
 Key rules:
-- **Answer key protection.** Students have no read access to `questions`, `question_options` or `quiz_versions`. During an attempt they get the questions only from a server route, which removes `is_correct` and explanations until the attempt is submitted. This holds even if a student calls Supabase directly with the public anon key.
+- **Answer key protection.** Students have no read access to `questions` or `question_options`. On `quiz_versions` they can read only the metadata columns (version number, question count, dates) of published quizzes: the `snapshot` column, which holds the key, is never granted to them. During an attempt they get the questions only from the server, which removes `correct` and explanations until the attempt is submitted. This holds even if a student calls Supabase directly with the public key.
 - **History integrity.** Publishing writes a `quiz_versions.snapshot`: the questions, options, answer key and explanations as they are at that moment. Attempts point to a `quiz_version_id` and are graded only against it. Editing the quiz afterwards never touches past attempts.
 - **One active attempt** per (user, quiz): a partial unique index on `attempts(user_id, quiz_id) WHERE status = 'in_progress'`.
 - **Deleting:**

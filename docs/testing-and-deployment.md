@@ -51,21 +51,22 @@ Each test runs against a fresh local database (`supabase db reset`, then a fixtu
 
 1. Admin logs in and uploads `PLDC1.pdf`.
 2. The review summary shows 42 questions.
-3. A fixture flag (`E2E_STRIP_KEY=5`) removes 5 key entries during parsing, so 5 questions show "Thiếu đáp án" (missing answer).
-4. Admin selects them → Hỏi AI → confirms "5 câu"; the AI stub answers.
-5. Admin verifies all questions.
+3. The test clears the answers of 5 questions in the database to simulate a partial key, so 5 questions show "Thiếu đáp án" (missing answer). The parser's real partial-key behaviour on this PDF is covered by unit tests, so production code has no test-only flag.
+4. Admin clicks "Hỏi AI (5 câu)" and confirms. The AI stub (`e2e/ai-stub.mjs`, OpenAI-compatible, local, free) answers.
+5. Publishing is blocked until the answers are verified. The admin verifies all questions.
 6. Admin publishes.
-7. Student (invited in the setup step) starts the exam.
-8. Run A: answers 10 questions and submits. Run B: a quiz with a 1-minute duration, with the clock moved forward via `page.clock`, submits itself.
-9. Both results pages show the expected scores.
-10. Student opens the history, then the results page with the "Sai" (wrong) filter.
+7. The student starts the exam.
+8. The student answers and submits. The timeout variant (a 1-minute quiz with the clock moved forward via `page.clock`) is in `e2e/exam.spec.ts`.
+9. The results page shows the expected score (1/42 → "0,24").
+10. The student opens the history, then the "Câu sai" (wrong answers) view. The library card shows best and latest scores, and the admin sees the attempt.
 
-A second spec runs steps 7–9 on a 360 px viewport.
+All browser specs run on two projects: desktop and a 360 px viewport. Playwright starts both the AI stub and the dev server, with AI pointed at the stub. Real AI providers are never called in tests.
 
 ### A.5 Fixtures
 
-- `tests/fixtures/pdf/PLDC1.pdf`, plus `PLDC1.items.json` (the raw positioned text items from the PDF, created once by `scripts/dump-pdf-items.ts`), plus `PLDC1.expected.json`.
-- Variants are made by editing `items.json` (see design §C.9).
+- `tests/fixtures/pdf/PLDC1.pdf`, plus `PLDC1.items.json` (the raw positioned text items, regenerated with `npx tsx scripts/dump-pdf-items.mts tests/fixtures/pdf/PLDC1.pdf > tests/fixtures/pdf/PLDC1.items.json`).
+- The expected key and hand-checked option texts live in `src/lib/pdf-import/parse.test.ts`.
+- Variants are made by editing a copy of the items in the test (see design §C.9).
 - **Every new real PDF that breaks the parser gets added as a fixture before the fix.**
 
 ---
@@ -85,9 +86,9 @@ Node 24, npm, Docker Desktop (for the local Supabase), Supabase CLI, a GitHub ac
 | `SUPABASE_SECRET_KEY` | server only (`server/admin-client.ts` imports `server-only`) | **yes** |
 | `APP_ORIGIN` | building invite links, e.g. `https://quiz.example.vercel.app` | no |
 | `INVITE_TTL_HOURS` | default 72 | no |
-| `AI_PROVIDER` | `openai-compatible` \| `anthropic`; leave empty to turn AI off | no |
+| `AI_PROVIDER` | `anthropic` \| `openai-compatible`; leave empty to turn AI off | no |
 | `AI_API_KEY` | server only | **yes** |
-| `AI_MODEL` | e.g. `gpt-4o-mini`, `claude-haiku-5-5` | no |
+| `AI_MODEL` | Defaults to `claude-opus-5-5` (Anthropic) or `gpt-4o-mini` (OpenAI-compatible). A cheaper model such as `claude-haiku-5-5` works too; the choice and its cost are yours | no |
 | `AI_BASE_URL` | needed only for OpenAI-compatible providers other than OpenAI | no |
 | `AI_BATCH_SIZE` | default 20 | no |
 
@@ -95,28 +96,29 @@ Node 24, npm, Docker Desktop (for the local Supabase), Supabase CLI, a GitHub ac
 
 ```bash
 npm install
-npx supabase start               # local Postgres, Auth and Storage in Docker
-npx supabase db reset          # applies supabase/migrations + seed.sql
-cp .env.example .env.local     # paste the URL, anon key and service key printed by `supabase status`
+npm run db:start               # local Postgres, Auth and Storage in Docker (applies migrations)
+cp .env.example .env.local     # fill API_URL / PUBLISHABLE_KEY / SECRET_KEY from `npx supabase status`
 npm run bootstrap-admin -- --email you@example.com --name "Admin"   # asks for a password
-npm run dev                       # http://localhost:3000
-npm test && npm run test:int && npm run test:e2e
+npm run dev                    # http://localhost:3000
+npm test && npm run test:int && npm run test:e2e   # integration + e2e WIPE the local database
 ```
+
+`npx playwright install chromium` is needed once before the first e2e run.
 
 ### B.4 Supabase project setup (production)
 
 1. Create a project on the Free plan, in the region closest to your users (e.g. Singapore).
 2. **Auth → Providers → Email:** turn email login on, turn **"Allow new users to sign up" off**, and turn "Confirm email" off (the app confirms invited users itself).
 3. **Auth → URL configuration:** set the Site URL to `APP_ORIGIN`.
-4. Apply the migrations: `supabase link --project-ref <ref>` then `supabase db push`. The migrations also create the `imports` storage bucket and its rules, so nothing needs clicking in the dashboard.
-5. Copy the URL, the anon key and the service key into Vercel's environment variables.
-6. Bootstrap the admin against production: run `npm run bootstrap-admin --` locally with the production variables in a temporary env file, then delete that file.
+4. Apply the migrations: `npx supabase link --project-ref <ref>`, then `npx supabase db push --remote` (preview first with `--dry-run`). The migrations also create the `imports` storage bucket and its rules, so nothing needs clicking in the dashboard.
+5. **Project Settings → API keys:** copy the project URL, the **publishable** key and the **secret** key into Vercel's environment variables.
+6. Bootstrap the admin against production: put the production values in a temporary file (e.g. `.env.prod`), run `npm run bootstrap-admin -- --env .env.prod --email … --name "…"`, then delete the file.
 
 ### B.5 Migrations
 
 - Migrations are plain SQL in `supabase/migrations/`, timestamped, and only ever added, never edited.
 - Each milestone adds its own migration (M1 auth, M2 quizzes, M3 imports and AI, M4 attempts).
-- To change the schema: `supabase migration new <name>` → write the SQL → `supabase db reset` locally → run the tests → `supabase db push`.
+- To change the schema: `npx supabase migration new <name>` → write the SQL → `npm run db:reset` locally → run the tests → `npx supabase db push --remote`.
 - To undo a change, write a new migration that reverses it.
 
 ### B.6 Storage rules
@@ -125,7 +127,7 @@ Created in a migration:
 - `insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values ('imports','imports', false, 10485760, '{application/pdf}')`
 - A `storage.objects` policy limiting `select/insert/delete` to `bucket_id = 'imports' and is_admin()`.
 
-The server also checks the `%PDF-` file header itself. Uploaded files can be deleted from the quiz settings once the quiz is published ("Xoá file PDF gốc", delete the original PDF).
+The server also checks the `%PDF-` file header itself. Uploaded PDFs are small (the sample is 165 KB) and are kept for re-checking. If storage ever gets close to the 1 GB limit, delete old files under Storage → `imports` in the Supabase dashboard; quizzes don't depend on them after import. (A "Xoá file PDF gốc" button was deferred; it isn't needed at this scale.)
 
 ### B.7 Admin bootstrap
 
@@ -156,11 +158,15 @@ The script refuses to run if an admin already exists, unless `--force` is passed
 
 | Task | How | Frequency |
 |---|---|---|
-| Stop the Supabase Free project from pausing | GitHub Actions cron calls `GET /api/health`, which runs a tiny database query | Every 3 days |
-| Back up the database | GitHub Actions: `supabase db dump --data-only` + schema dump → stored as a workflow artifact (kept 90 days) | Weekly |
+| Stop the Supabase Free project from pausing | `.github/workflows/keepalive.yml` calls `GET /api/health`, which runs a tiny database query | Every 3 days |
+| Back up the database | `.github/workflows/backup.yml`: `supabase db dump --remote=<url>` (schema) + `--data-only` → stored as a workflow artifact (kept 90 days) | Weekly (Sunday) |
 | Test a restore | Run `psql` against a local `supabase start` database using the latest dump | Once at launch, then every quarter |
 | Check usage | Supabase dashboard (database size < 500 MB, storage < 1 GB), Vercel usage page | Monthly |
 | Update dependencies | `npm outdated`, Dependabot for security fixes only | Monthly |
 | Rotate keys | Supabase service key or AI key: update it in Vercel → redeploy | When a key may have leaked |
 
-GitHub Actions secrets: `SUPABASE_DB_URL` (for the dump) and `APP_ORIGIN`. The repository should be private, because the backups are stored with it.
+GitHub Actions secrets: `SUPABASE_DB_URL` (Supabase → Connect → session pooler URI, with the password) and `APP_ORIGIN`. The repository should be private, because the backups are stored with it.
+
+`.github/workflows/ci.yml` runs lint, typecheck and unit tests, then starts a local Supabase and runs the integration and e2e suites on every push and pull request.
+
+**Restoring a backup:** download the artifact, then run `psql "$DB_URL" -f schema.sql` followed by `psql "$DB_URL" -f data.sql` against an empty project, or against a local `npm run db:start` database to test it.

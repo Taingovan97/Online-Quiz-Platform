@@ -1,8 +1,26 @@
 import Link from "next/link";
 import { Clock, ListChecks } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/server";
+import { formatScore } from "@/lib/grading/grade";
+import { requireProfile } from "@/server/auth";
+import { listAttempts, scoreSummary } from "@/server/history";
 import { t } from "@/lib/i18n/vi";
+
+function ScoreLine({ s }: { s?: { best: number; latest: number; inProgress: boolean } }) {
+  if (!s) return null;
+  return (
+    <span className="flex flex-wrap items-center gap-2 text-sm">
+      {s.inProgress && <Badge variant="outline">{t.history.inProgress}</Badge>}
+      {s.best >= 0 && (
+        <span>
+          {t.history.best}: <strong>{formatScore(s.best)}</strong> · {t.history.latest}: <strong>{formatScore(s.latest)}</strong>
+        </span>
+      )}
+    </span>
+  );
+}
 
 type Row = {
   id: string;
@@ -25,7 +43,12 @@ export default async function QuizzesPage({ searchParams }: PageProps<"/quizzes"
     .eq("status", "published")
     .order("title");
   if (search) query = query.ilike("title", `%${search.replace(/[%_]/g, "")}%`);
-  const { data: quizzes } = await query.returns<Row[]>();
+  const profile = await requireProfile();
+  const [{ data: quizzes }, attempts] = await Promise.all([
+    query.returns<Row[]>(),
+    listAttempts(supabase, profile.id, 1000),
+  ]);
+  const scores = scoreSummary(attempts);
 
   const groups = new Map<string, { name: string; items: Row[] }>();
   for (const quiz of quizzes ?? []) {
@@ -65,6 +88,7 @@ export default async function QuizzesPage({ searchParams }: PageProps<"/quizzes"
                     <Clock className="size-4" /> {t.quiz.durationShort(quiz.duration_minutes)}
                   </span>
                 </span>
+                <ScoreLine s={scores.get(quiz.id)} />
               </Link>
             ))}
           </div>

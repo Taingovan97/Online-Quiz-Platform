@@ -32,8 +32,6 @@ test("admin imports PLDC1.pdf and reviews the extracted quiz", async ({ page }) 
   // Letter-reference warning is shown on Q7 (sorted ahead of clean rows).
   await expect(page.getByText("⚠ C. Cả B và C")).toBeVisible();
 
-  // No AI configured in this environment → no AI button.
-  await expect(page.getByRole("button", { name: /Hỏi AI/ })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Xuất bản" }).click();
   await expect(page.getByText("Đã xuất bản phiên bản 1")).toBeVisible();

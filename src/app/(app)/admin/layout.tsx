@@ -7,6 +7,7 @@ const links = [
   { href: "/admin/quizzes", label: t.nav.quizzes },
   { href: "/admin/imports/new", label: t.imports.nav },
   { href: "/admin/subjects", label: t.subjects.title },
+  { href: "/admin/attempts", label: t.nav.history },
   { href: "/admin/users", label: t.nav.users },
 ];
 
