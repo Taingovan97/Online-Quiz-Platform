@@ -7,7 +7,7 @@ Invitation-only quiz practice for a small group: import multiple-choice PDFs, ve
 ## Features
 
 - **Invitation-only accounts.** The admin creates single-use invite links (72 h) and can revoke them or deactivate users. There is no public sign-up.
-- **PDF import.** Text PDFs with numbered questions, options in a 2-column grid and an "Đáp án" key at the end. Options are identified by their grid letter, and answers are mapped by question number. Missing, invalid and ambiguous answers are flagged, along with options that refer to other options ("Cả B và C").
+- **PDF import.** Two text-PDF layouts: (1) numbered questions, options in a 2-column grid and an "Đáp án" key at the end (options identified by their grid letter, answers mapped by question number); (2) "Câu N:" questions with `A.`/`B.`… options in 1–4 columns and the correct option highlighted in yellow. Missing, invalid and ambiguous answers are flagged, along with options that refer to other options ("Cả B và C").
 - **AI fallback (optional).** Only for unresolved or selected questions. The number of questions is shown before anything is sent, responses are cached, and every AI answer must be verified before publishing.
 - **Quiz management.** Subjects, single / multiple / mixed answer modes, per-question type, a side-panel editor, preview, publishing to immutable versions, archiving.
 - **Exams.**

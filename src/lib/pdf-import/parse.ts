@@ -1,4 +1,5 @@
-import type { Item } from "./extract";
+import type { Highlight, Item } from "./extract";
+import { looksLabeled, parseLabeled } from "./parse-labeled";
 import { buildLines, joinItems, type Line } from "./lines";
 import type { ImportSummary, ParsedQuestion, ParsedQuiz, ParseWarning } from "./types";
 
@@ -74,7 +75,22 @@ function splitColumns(line: Line, layout: Layout): [ColumnPart, ColumnPart] {
 type OptionAcc = { col: 0 | 1; outer: string | null; parts: string[] };
 type QuestionAcc = { number: number; stem: string[]; options: OptionAcc[]; open: [OptionAcc | null, OptionAcc | null] };
 
-export function parsePdfItems(items: Item[]): ParsedQuiz {
+/**
+ * Parses a quiz PDF. Two layouts are supported: the outer-letter grid with an
+ * "Đáp án" key (below), and "Câu N:" questions with highlighted answers
+ * (parse-labeled.ts). Highlights are only needed for the latter.
+ */
+export function parsePdfItems(items: Item[], highlights: Highlight[] = []): ParsedQuiz {
+  if (!hasGridQuestions(items) && looksLabeled(items)) return parseLabeled(items, highlights);
+  return parseGrid(items);
+}
+
+function hasGridQuestions(items: Item[]): boolean {
+  const leftTextX = detectLayout(items).leftOuterX + 15;
+  return buildLines(items).some((l) => QUESTION_START.test(l.items[0]?.str.trim() ?? "") && l.items[0].x < leftTextX);
+}
+
+function parseGrid(items: Item[]): ParsedQuiz {
   const warnings: ParseWarning[] = [];
   const lines = buildLines(items);
   const layout = detectLayout(items);

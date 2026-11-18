@@ -6,7 +6,7 @@ import { fail, ok, type Result } from "@/lib/result";
 import { t } from "@/lib/i18n/vi";
 import { contentHash } from "@/lib/quiz/edit";
 import type { AnswerMode } from "@/lib/quiz/types";
-import { extractItems } from "@/lib/pdf-import/extract";
+import { extractPdf } from "@/lib/pdf-import/extract";
 import { parsePdfItems } from "@/lib/pdf-import/parse";
 import type { ImportSummary, ParseWarning, ParsedQuiz } from "@/lib/pdf-import/types";
 
@@ -117,10 +117,11 @@ export async function processImport(
 
   let parsed: ParsedQuiz;
   try {
-    // PDF content is untrusted: only text is extracted, nothing is executed or rendered.
-    const items = await extractItems(bytes);
+    // PDF content is untrusted: only text and filled-rectangle geometry are read;
+    // nothing is executed or rendered.
+    const { items, highlights } = await extractPdf(bytes);
     if (items.length === 0) return failJob(t.imports.noText);
-    parsed = parsePdfItems(items);
+    parsed = parsePdfItems(items, highlights);
   } catch {
     return failJob(t.imports.unreadable);
   }

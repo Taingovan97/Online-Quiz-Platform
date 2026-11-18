@@ -453,6 +453,23 @@ type ParseWarning = { code: 'COUNT_MISMATCH' | 'ORPHAN_KEY_ENTRY' | 'DUPLICATE_N
 - `COUNT_MISMATCH`: `expectedCount` differs from the number of questions parsed.
 - If no text is extracted at all (a scanned PDF): `PARSE_FAILED` with the message "PDF không có lớp văn bản (có thể là bản scan) — chưa được hỗ trợ." ("The PDF has no text layer (probably a scan) — not supported yet.")
 
+### C.7a Second layout: labelled options with highlighted answers
+
+Added 2026-11-18 for `LTTDTT.pdf` (implemented in `src/lib/pdf-import/parse-labeled.ts`). Used when the document has no grid-style `N.` question starts but has at least two `Câu N …:` headings at the left margin; otherwise the grid parser above runs.
+
+```
+Câu 1 [Nguồn]: Question stem (may wrap; wide gaps become "_____" blanks)
+A. option     B. option     C. option     D. option     ← 1–4 options per row
+E. a long option that
+   wraps onto the next line
+HẾT                                                      ← ends parsing
+```
+
+- **Questions:** heading `/^câu\s*(\d{1,3})\s*(\[…\]|\(…\))?\s*[:.]\s*(.*)$/iu`; the bracketed source tag is dropped.
+- **Options:** a line is an option row when its first run is the next expected label (`A.`, then `B.`…). Further labels on the same row must continue the sequence and sit > 20 pt to the right, so text such as "Vitamin C." or "1 / 2" is never split. Continuation lines go to the nearest option label on their left in the last option row. 2–6 options per question (true/false questions have 2).
+- **Answers:** there is no key. `extractPdf` walks each page's operator list (transform stack + fill colour) and keeps filled rectangles in a highlighter colour (`isHighlightColor`: yellow/amber). An option is correct when its label or first text run lies inside a highlight box on the same page. No box → `missing`; no boxes in the whole document → `NO_ANSWER_KEY`. Two or more marked options → `multiple`.
+- **Header:** title = first header line in the largest font (skipping the "78 CÂU" line); `expectedCount` from `/(\d+)\s*câu(\s*hỏi)?/iu`.
+
 ### C.8 AI prompt contract
 
 - **System prompt (fixed):** a role statement plus these rules:
@@ -471,6 +488,8 @@ type ParseWarning = { code: 'COUNT_MISMATCH' | 'ORPHAN_KEY_ENTRY' | 'DUPLICATE_N
 - **Cache:** results are stored per `(content_hash, provider, model)` only after they pass the checks.
 
 ### C.9 Fixtures
+
+`tests/fixtures/pdf/LTTDTT.pdf` plus `LTTDTT.json` (`{ items, highlights }`, from `scripts/dump-pdf-items.mts --with-highlights`): 78 questions, one highlighted answer each, covering 1/2/3/4-column rows, wrapped options, a fifth option E and fill-in blanks.
 
 `tests/fixtures/pdf/PLDC1.pdf` plus `PLDC1.expected.json`, which holds all 42 stems, their 4 options in outer-letter order, and the key. The key, transcribed from page 9:
 

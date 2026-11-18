@@ -36,3 +36,23 @@ test("admin imports PLDC1.pdf and reviews the extracted quiz", async ({ page }) 
   await page.getByRole("button", { name: "Xuất bản" }).click();
   await expect(page.getByText("Đã xuất bản phiên bản 1")).toBeVisible();
 });
+
+test("admin imports a PDF whose answers are highlighted (LTTDTT)", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByLabel("Email").fill("admin@e2e.test");
+  await page.getByLabel("Mật khẩu").fill(PASSWORD);
+  await page.getByRole("button", { name: "Đăng nhập" }).click();
+  await page.waitForURL(/\/admin$/);
+
+  await page.goto("/admin/imports/new");
+  await page.getByLabel("File PDF (tối đa 10 MB)").setInputFiles("tests/fixtures/pdf/LTTDTT.pdf");
+  await page.getByRole("button", { name: "Tải lên & phân tích" }).click();
+  await page.waitForURL(/\/admin\/quizzes\/[0-9a-f-]{36}$/, { timeout: 30_000 });
+
+  await expect(page.getByRole("heading", { name: "NGÂN HÀNG TRẮC NGHIỆM – LÝ LUẬN GDTC" })).toBeVisible();
+  await expect(page.getByText("Tổng", { exact: true }).locator("..")).toContainText("78");
+  await expect(page.getByText("Cần xử lý", { exact: true }).first().locator("..")).toContainText("0");
+
+  await page.getByRole("button", { name: "Xuất bản" }).click();
+  await expect(page.getByText("Đã xuất bản phiên bản 1")).toBeVisible();
+});
